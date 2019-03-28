@@ -1,8 +1,10 @@
 <template>
   <div>
+    
     <h1>hola {{ msg}}</h1>
     <input type="text" v-model="msg">
-    <button @click="guardar">Guardar</button>
+    <button @click="guardar" class="btn btn-primary">Guardar</button>
+     <b-button  variant="primary">Guardar</b-button>
     <table>
       <tr>
         <th>Nombre</th>
@@ -14,7 +16,10 @@
   </div>
 </template>
 <script>
+import navbar  from '../components/navbar'
+
 export default {
+  components: { navbar},
   data() {
     return {
       msg: "dayron carvajal",
