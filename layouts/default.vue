@@ -1,8 +1,13 @@
 <template>
     <div>
          <navbar />
-        <nuxt />
-        esto es foother
+         <div class="container-fluid"> 
+             <nuxt />
+         </div>
+
+
+        
+      
     </div>
 </template>
 
