@@ -1,7 +1,7 @@
 <template>
   <div>
      
-     <h1>DESDE CONTACTOS</h1>
+     <h1>{{categorias[0]}}</h1>
   </div>
    
   
@@ -10,8 +10,30 @@
 
 <script>
  import navbar  from '../components/navbar'
+ import { db } from "../services/firebase";
  export default {
-   components: { navbar}
+   components: { navbar},
+
+   asyncData() {
+    return db
+      .collection("productos").doc("9VGZjEhxWpLniuYAsDya").collection("comentario")
+      .get()
+      .then(productosSnap => {
+        let categorias = [];
+
+        productosSnap.forEach(value => {
+          categorias.push({
+            id: value.id,
+            ...value.data()
+          });
+        });
+
+        return {
+          
+          categorias
+        };
+      });
+  },
      
  }
  </script>

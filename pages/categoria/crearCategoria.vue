@@ -1,8 +1,8 @@
 <template>
-  <div>
+  <div align="center">
     <h1>ADMINISTRACION DE CATEGORIAS</h1>
     <b-form @submit.prevent="guardarCategoria">
-      <b-form-group id="input-group-2" label="Nombre:" label-for="input-2">
+      <b-form-group id="input-group-2" label="Nombre:" label-for="input-2" class="col-sm-4">
         <b-form-input
           id="nombre"
           type="text"

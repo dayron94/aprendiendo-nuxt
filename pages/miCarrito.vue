@@ -3,11 +3,9 @@
     <div class="col-sm-12">
       <div class="row">
         <div class="col-sm-11">
-          <h2>Listado de Categorias</h2>
+          <h2>Mi carrito</h2>
         </div>
-        <div class="col-sm-1">
-          <b-button variant="primary" href="/categoria/crearCategoria">Nueva</b-button>
-        </div>
+        
       </div>
 
       <b-table
@@ -19,7 +17,6 @@
         :per-page="perPage"
         :current-page="currentPage"
         :busy="isBusy"
-        
       >
         <div slot="table-busy" class="text-center my-2">
           <b-spinner class="align-middle"></b-spinner>
@@ -31,12 +28,12 @@
             :disabled="bloquear"
             @click="editarCategoria(data.item.id,data.index)"
             v-b-modal.editar
-          >Editar</b-button>
+          >Editar cantidad</b-button>
           <b-button
             variant="danger"
             @click="eliminarCategorias(data.item.id, data.index)"
             :disabled="bloquear"
-          >Eliminar</b-button>
+          >Eliminar Compra</b-button>
         </template>
       </b-table>
 
@@ -54,16 +51,17 @@
         <form ref="form" @submit.stop.prevent="handleSubmit">
           <b-form-group
             :state="nameState"
-            label="Nombre"
-            label-for="nombre"
-            invalid-feedback="Ingresa un nombre"
+            label="Cantidad"
+            label-for="cantidad"
+            invalid-feedback="Ingresa una cantidad"
           >
             <b-form-input
-              id="nombre"
-              v-model="form.nombre"
+              type="number"
+              id="cantidad"
+              v-model="form.cantidad"
               :state="nameState"
               required
-            >{{form.nombre}}</b-form-input>
+            ></b-form-input>
           </b-form-group>
         </form>
 
@@ -83,36 +81,38 @@
     </div>
   </div>
 </template>
-
 <script>
-import { db } from "../../services/firebase";
+import { db } from "../services/firebase";
 import { functions } from "firebase";
+import { auth } from "../services/firebase";
 export default {
-  asyncData() {
-    return db
-      .collection("categoria")
-      .orderBy("nombre")
-      .get()
-      .then(productosSnap => {
-        let categorias = [];
+  asyncData({ params }) {
+    var citiesRef = db.collection("compras");
+    var query = citiesRef.where("usuario", "==", params.user);
+    return query.get().then(productosSnap => {
+      let categorias = [];
 
-        productosSnap.forEach(value => {
-          categorias.push({
-            id: value.id,
-            ...value.data()
-          });
+      productosSnap.forEach(value => {
+        categorias.push({
+          id: value.id,
+          ...value.data()
+          //productos1: productos.orderBy("nombre", "asc").equalTo(params.slug)
         });
-
-        return {
-          bloquear: false,
-          perPage: 10,
-          currentPage: 1,
-          categorias
-        };
       });
+
+      //console.log(productos)
+      return {
+        bloquear: false,
+        perPage: 10,
+        currentPage: 1,
+        categorias
+      };
+    });
   },
   data() {
     return {
+      bloquear: true,
+      user: false,
       show: false,
       isBusy: false,
       boxTwo: "",
@@ -120,13 +120,26 @@ export default {
       idEditar: "",
       tituloModal: "Editar categoria",
       form: {
-        nombre: ""
+        cantidad: "",
+        producto: "",
+        precio: "",
+        total: "",
+        usuario: ""
       },
       variable: false,
       nameState: null,
       fields: [
         {
-          key: "nombre"
+          key: "producto"
+        },
+        {
+          key: "cantidad"
+        },
+        {
+          key: "unitario"
+        },
+        {
+          key: "total"
         },
         {
           key: "acciones"
@@ -139,11 +152,17 @@ export default {
       return this.categorias.length;
     }
   },
+  created() {
+    auth.onAuthStateChanged(user => {
+      this.user = user;
+      user.refreshToken;
+    });
+  },
 
   methods: {
     eliminarCategorias(id, index) {
-      if (confirm("DESEA REALMENTE ELIMINAR ESTA CATEGORIA?") == true) {
-        db.collection("categoria")
+      if (confirm("DESEA REALMENTE ELIMINAR ESTA COMPRA?") == true) {
+        db.collection("compras")
           .doc(id)
           .delete()
           .then(() => {
@@ -163,7 +182,11 @@ export default {
       this.categorias.map((value, key) => {
         if (value.id == id) {
           this.form = {
-            nombre: value.nombre
+            cantidad: value.cantidad,
+            producto: value.producto,
+            unitario: value.unitario,
+            total: value.total,
+            usuario: value.usuario
           };
         }
       });
@@ -186,23 +209,25 @@ export default {
       }
       this.isBusy = true;
       if (this.define == "editar") {
-        db.collection("categoria")
+        this.form.total = this.form.unitario * this.form.cantidad;
+        db.collection("compras")
           .doc(this.idEditar)
           .set(this.form)
           .then(res => {
-            db.collection("categoria")
-              .orderBy("nombre")
-              .get()
-              .then(categoriasSnap => {
-                this.categorias = [];
-                categoriasSnap.forEach(value => {
-                  this.categorias.push({
-                    id: value.id,
-                    ...value.data()
-                  });
+            var citiesRef = db.collection("compras");
+            var query = citiesRef.where("usuario", "==", this.user.displayName);
+
+            return query.get().then(productosSnap => {
+              this.categorias = [];
+
+              productosSnap.forEach(value => {
+                this.categorias.push({
+                  id: value.id,
+                  ...value.data()
                 });
                 this.isBusy = false;
               });
+            });
           });
       }
 
@@ -213,5 +238,4 @@ export default {
   }
 };
 </script>
-
 

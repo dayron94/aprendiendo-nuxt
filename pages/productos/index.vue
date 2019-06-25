@@ -5,7 +5,7 @@
         <h2>Listado de productos</h2>
       </div>
       <div class="col-sm-1">
-        <b-button variant="primary" v-b-modal.nuevo href="/productos/crear">Nuevo</b-button>
+        <b-button variant="primary" v-b-modal.nuevo href="/productoCrear/crear">Nuevo</b-button>
       </div>
     </div>
     <div class="row mt-2">
@@ -17,12 +17,13 @@
         :items="productos"
         :per-page="perPage"
         :current-page="currentPage"
-        :busy="isBusy"
+        small
       >
         <div slot="table-busy" class="text-center my-2">
           <b-spinner class="align-middle"></b-spinner>
           <strong>Cargando...</strong>
         </div>
+
         <template slot="acciones" slot-scope="data">
           <b-button
             class="open-AddBookDialog"
@@ -36,6 +37,10 @@
             type="button"
             @click="eliminarProductos(data.item.id, data.index)"
           >eliminar</b-button>
+        </template>
+
+        <template slot="imagen" slot-scope="data">
+          <b-img :src="data.item.imagen" width="100" height="100"></b-img>
         </template>
       </b-table>
     </div>
@@ -52,6 +57,15 @@
       @ok="handleOk"
     >
       <form ref="form" @submit.stop.prevent="handleSubmit">
+        <b-form-group id="input-group-1" label="Imagen:" label-for="imagen">
+          <b-form-file
+            id="imagen"
+            v-model="imageProduct"
+            placeholder="Elige una imagen"
+            accept="image/"
+          ></b-form-file>
+        </b-form-group>
+
         <b-form-group
           :state="nameState"
           label="Nombre"
@@ -64,6 +78,20 @@
             :state="nameState"
             required
           >{{form.nombre}}</b-form-input>
+        </b-form-group>
+
+        <b-form-group id="input-group-5" label="Descripcion:" label-for="text">
+          <b-form-textarea
+            id="textarea"
+            v-model="form.descripcion"
+            placeholder="Escribe su descripcion..."
+            rows="3"
+            max-rows="6"
+          ></b-form-textarea>
+        </b-form-group>
+
+        <b-form-group label="categoria" id="categoria" label-for="categoria">
+          <b-form-select v-model="form.categoria" :options="categoria"></b-form-select>
         </b-form-group>
         <b-form-group
           :state="nameState"
@@ -104,15 +132,39 @@
         aria-controls="my-table"
       ></b-pagination>
     </div>
+
+    
   </div>
 </template>
  
 <script>
-import { db } from "../../services/firebase";
+import { db, storage } from "../../services/firebase";
 import { database } from "firebase";
+import { auth } from "../../services/firebase";
 export default {
-  asyncData() {
-    return db
+  asyncData({ params }) {
+    var citiesRef = db.collection("productos");
+    var query = citiesRef.where("usuario", "==", params.user);
+    return query.get().then(productosSnap => {
+      let productos = [];
+
+      productosSnap.forEach(value => {
+        productos.push({
+          id: value.id,
+          ...value.data()
+          //productos1: productos.orderBy("nombre", "asc").equalTo(params.slug)
+        });
+      });
+
+      //console.log(productos)
+      return {
+        productos,
+        currentPage: 1,
+        perPage: 10
+      };
+    });
+
+    /*return db
       .collection("productos")
       .orderBy("nombre")
       .get()
@@ -129,10 +181,11 @@ export default {
           currentPage: 1,
           perPage: 10
         };
-      });
+      });*/
   },
   data() {
     return {
+      user: false,
       show: false,
       isBusy: false,
       boxTwo: "",
@@ -142,19 +195,30 @@ export default {
       form: {
         nombre: "",
         cantidad: "",
-        precio: ""
+        descripcion: "",
+        precio: "",
+        slug: ""
       },
+      slugg: "",
+      clase: "",
+      imageProduct: "",
       variable: false,
       nameState: null,
+      clases: [],
+      categoria: ["FÚTBOL NACIONAL", "FÚTBOL INTERNACIONAL"],
       fields: [
-        { key: "Imagen" },
+        { key: "imagen" },
         {
           key: "nombre"
         },
+        { key: "categoria" },
+        { key: "descripcion" },
         { key: "precio" },
         { key: "cantidad" },
         { key: "acciones" }
-      ]
+      ],
+
+ 
     };
   },
   computed: {
@@ -162,7 +226,15 @@ export default {
       return this.productos.length;
     }
   },
+  created() {
+    auth.onAuthStateChanged(user => {
+      this.user = user;
+      user.refreshToken;
+    });
+  },
   methods: {
+    cargarCategorias() {},
+
     eliminarProductos(id, index) {
       if (confirm("DESEA REALMENTE ELIMINAR ESTE PRODUCTO?") == true) {
         db.collection("productos")
@@ -187,10 +259,43 @@ export default {
           this.form = {
             nombre: value.nombre,
             cantidad: value.cantidad,
-            precio: value.precio
+            descripcion: value.descripcion,
+            precio: value.precio,
+            imagen: value.imagen,
+            slug: value.nombre,
+            usuario: value.usuario
           };
+
+          this.slugg = value.slug;
         }
       });
+
+      // this.traercategorias()
+    },
+
+    traercategorias() {
+      this.clases = [];
+      return db
+        .collection("categoria")
+        .orderBy("nombre")
+        .get()
+        .then(productosSnap => {
+          let categori = [];
+
+          productosSnap.forEach(value => {
+            categori.push({
+              id: value.id,
+              ...value.data()
+            });
+
+            this.clases.push({
+              id: value.id,
+              ...value.data()
+            });
+          });
+
+          //alert(this.clase[1].nombre)
+        });
     },
 
     checkFormValidity() {
@@ -211,24 +316,35 @@ export default {
       }
       this.isBusy = true;
       if (this.define == "editar") {
-        db.collection("productos")
-          .doc(this.idEditar)
-          .set(this.form)
-          .then(res => {
-            db.collection("productos")
-              .orderBy("nombre")
-              .get()
-              .then(productosSnap => {
+        let imageRef = storage.child(this.imageProduct.name);
+        imageRef.put(this.imageProduct).then(async imageRes => {
+          this.form.imagen = await imageRes.ref.getDownloadURL();
+          this.form.slug = this.form.nombre;
+
+          db.collection("productos")
+            .doc(this.idEditar)
+            .set(this.form)
+            .then(res => {
+              var citiesRef = db.collection("productos");
+              var query = citiesRef.where(
+                "usuario",
+                "==",
+                this.user.displayName
+              );
+
+              return query.get().then(productosSnap => {
                 this.productos = [];
+
                 productosSnap.forEach(value => {
                   this.productos.push({
                     id: value.id,
                     ...value.data()
                   });
+                  this.isBusy = false;
                 });
-                this.isBusy = false;
               });
-          });
+            });
+        });
       }
 
       this.$nextTick(() => {

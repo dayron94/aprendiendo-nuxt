@@ -1,7 +1,7 @@
 <template>
-  <div  class="container-fluid mt-5">
+  <div>
     <h1>Desde producto - crear</h1>
-   
+    <h2>{{user.displayName}}</h2>
     <b-form @submit.prevent="guardarProducto">
       <b-form-group id="input-group-1" label="Imagen:" label-for="imagen">
         <b-form-file v-model="imageProduct" placeholder="Elige una imagen" accept="image/"></b-form-file>
@@ -16,6 +16,18 @@
           placeholder="Escribe el nombre del producto"
         ></b-form-input>
       </b-form-group>
+
+      <b-form-group id="input-group-5" label="Descripcion:" label-for="text">
+        <b-form-textarea
+        id="textarea"
+        v-model="form.descripcion"
+        placeholder="Escribe su descripcion..."
+        rows="3"
+        max-rows="6"
+      ></b-form-textarea>
+      </b-form-group>
+
+      
 
       <b-form-group id="input-group-3" label="Precio:" label-for="input-3">
         <b-form-input
@@ -63,7 +75,7 @@ import { db, storage } from "../../services/firebase";
 import { auth } from "../../services/firebase";
 
 export default {
-  asyncData() { 
+  asyncData() {
     return db
       .collection("categoria")
       .get()
@@ -84,23 +96,20 @@ export default {
       form: {
         nombre: "",
         cantidad: "",
+        descripcion: "",
         precio: "",
-        usuario: "",
+        usuario: ""
       },
       cargando: false,
       bloquear: false,
-      imageProduct: "",
-       
-     
+      imageProduct: ""
     };
   },
-   created() {
+  created() {
     auth.onAuthStateChanged(user => {
       this.user = user;
       user.refreshToken;
     });
-
-    
   },
   methods: {
     guardarProducto() {
@@ -109,20 +118,16 @@ export default {
       let imageRef = storage.child(this.imageProduct.name);
       imageRef.put(this.imageProduct).then(async imageRes => {
         this.form.imagen = await imageRes.ref.getDownloadURL();
-        this.form.usuario = this.user.displayName
+        this.form.usuario = this.user.displayName;
 
         db.collection("productos")
-          .add(this.form
-          
-          )
+          .add(this.form)
           .then(res => {
             this.$router.push({
               path: "/"
             });
           });
       });
-
-      
     }
   }
 };
